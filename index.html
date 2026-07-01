@@ -174,8 +174,17 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .err-card h3{color:#DC2626;font-size:14px;font-weight:600;margin-bottom:.5rem}
 .err-card p{font-size:13px;color:#7F1D1D;line-height:1.6}
 @media(max-width:900px){.sidebar{width:180px}.mb-hint{display:none}}
-@media(max-width:680px){.sidebar{display:none}.content{grid-template-columns:1fr}.in-panel,.out-panel{overflow:visible;height:auto}.main{flex-direction:column;height:auto;overflow:visible}.app{height:auto}.out-empty,.out-loading{min-height:200px}.r2{grid-template-columns:1fr}.sample-row{grid-template-columns:1fr 1fr}.features{grid-template-columns:1fr}}
+@media(max-width:680px){.sidebar{display:none}.content{grid-template-columns:1fr}.in-panel,.out-panel{overflow:visible;height:auto}.main{flex-direction:column;height:auto;overflow:visible}.app{height:auto}.out-empty,.out-loading{min-height:200px}.r2{grid-template-columns:1fr}.sample-row{grid-template-columns:1fr 1fr}.features{grid-template-columns:1fr}.mobile-nav{display:flex}}
 .hidden{display:none!important}
+/* Mobile nav */
+.mobile-nav{display:none;overflow-x:auto;background:var(--surface);border-bottom:1px solid var(--border);padding:.5rem .75rem;gap:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.mobile-nav::-webkit-scrollbar{display:none}
+.mnav{padding:6px 14px;border:1px solid var(--border2);border-radius:20px;background:transparent;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0}
+.mnav.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.mnav:hover:not(.on){background:var(--bg);border-color:var(--border2)}
+/* Privacy note */
+.privacy-note{font-size:11px;color:var(--text3);background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);padding:7px 11px;margin-top:.6rem;line-height:1.6;display:flex;gap:6px;align-items:flex-start}
+.privacy-note span{flex-shrink:0}
 </style>
 </head>
 <body>
@@ -212,6 +221,14 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
     <div class="tb-badge"><span class="status-dot"></span>Claude powered</div>
     <div style="flex:1"></div>
     <button class="tb-btn" onclick="changeKey()" title="Change connection URL">⚙ Settings</button>
+  </div>
+  <div class="mobile-nav">
+    <button class="mnav on" id="mnav-health" onclick="setMode('health')">📊 Health</button>
+    <button class="mnav" id="mnav-sprint" onclick="setMode('sprint')">📅 Sprint</button>
+    <button class="mnav" id="mnav-retro" onclick="setMode('retro')">🔄 Retro</button>
+    <button class="mnav" id="mnav-standup" onclick="setMode('standup')">👥 Standup</button>
+    <button class="mnav" id="mnav-update" onclick="setMode('update')">📧 Update</button>
+    <button class="mnav" id="mnav-risk" onclick="setMode('risk')">⚠️ Risk</button>
   </div>
   <div class="main">
     <div class="sidebar">
@@ -277,6 +294,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
             <textarea id="hl-data" rows="10" placeholder="Paste any combination of delivery data here — sprint progress, story statuses, blockers, team availability, defect counts, test results, DevOps pipeline status, capacity data, risks, PI planning notes, release readiness, standup notes, and anything else relevant to your current sprint or program.&#10;&#10;The more context you provide, the more specific and actionable the analysis will be.&#10;&#10;Alternatively, click one of the sample buttons above to load a ready-made dataset and see the agents in action."></textarea>
           </div>
           <button class="gbtn" id="gbtn-health" onclick="generate('health')">📊 Run Multi-Agent Analysis</button>
+          <div class="privacy-note"><span>⚠️</span> Do not upload confidential, client-sensitive, personal, or production data unless approved by your organisation's data security policy. All data is sent to Claude via your own Cloudflare Worker and is not stored.</div>
         </div>
 
         <!-- SPRINT PLANNER -->
@@ -453,8 +471,11 @@ let lastMarkdown = '';
 function setMode(m) {
   document.querySelectorAll('.mb').forEach(b => b.classList.remove('on'));
   document.querySelectorAll('.in-pane').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.mnav').forEach(b => b.classList.remove('on'));
   document.getElementById('mb-' + m).classList.add('on');
   document.getElementById('in-' + m).classList.remove('hidden');
+  const mn = document.getElementById('mnav-' + m);
+  if (mn) { mn.classList.add('on'); mn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'}); }
   mode = m;
   resetOut();
 }
@@ -478,6 +499,14 @@ function resetOut() {
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 function loadSample(type) {
+  // Clear any uploaded file indicator first so UI stays consistent
+  const infoEl = document.getElementById('fi-health');
+  if (infoEl && infoEl.className !== 'hidden') {
+    infoEl.className = 'hidden';
+    infoEl.innerHTML = '';
+    const fu = document.getElementById('fu-health');
+    if (fu) fu.value = '';
+  }
   const samples = {
     green: `Sprint Name: Healthy Sprint 22
 Sprint Days Completed: 7 of 10
@@ -607,6 +636,10 @@ KNOWN RISKS
 }
 
 // ── File upload ───────────────────────────────────────────────────────────────
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function handleFile(m, inp) {
   const file = inp.files[0];
   if (!file) return;
@@ -615,7 +648,7 @@ function handleFile(m, inp) {
     const txt = e.target.result;
     const infoEl = document.getElementById('fi-' + m);
     infoEl.className = 'up-result';
-    infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${file.name} ready</span><button onclick="clearFile('${m}')">✕</button>`;
+    infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${esc(file.name)} ready</span><button onclick="clearFile('${m}')">✕</button>`;
     if (m === 'health') {
       document.getElementById('hl-data').value = txt.slice(0, 12000);
     }
@@ -644,10 +677,13 @@ function handleFile(m, inp) {
 }
 function clearFile(m) {
   const infoEl = document.getElementById('fi-' + m);
-  infoEl.className = 'hidden';
-  infoEl.innerHTML = '';
+  if (infoEl) { infoEl.className = 'hidden'; infoEl.innerHTML = ''; }
   const fu = document.getElementById('fu-' + m);
   if (fu) fu.value = '';
+  // Also clear the textarea so old file data doesn't persist silently
+  if (m === 'health')   { const t = document.getElementById('hl-data');   if (t) t.value = ''; }
+  if (m === 'sprint')   { const t = document.getElementById('sp-stories'); if (t) t.value = ''; }
+  if (m === 'standup')  { const t = document.getElementById('sd-notes');   if (t) t.value = ''; }
 }
 ['health','sprint','standup'].forEach(m => {
   const dz = document.getElementById('dz-' + m);
@@ -714,8 +750,13 @@ OUTPUT FORMAT — use these exact section headings:
 # Agile Delivery Intelligence Report
 
 ## 1. Executive Summary
-- Overall Health: 🟢 Green / 🟡 Amber / 🔴 Red
-- Agile Health Score: X/100
+CRITICAL: Use this exact format for the first four lines. No deviations.
+- Overall Health: 🔴 Red
+OR
+- Overall Health: 🟡 Amber
+OR
+- Overall Health: 🟢 Green
+- Agile Health Score: NN/100
 - Confidence Level: High / Medium / Low
 - One-line situation summary
 
@@ -999,7 +1040,7 @@ async function generate(m) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: m === 'health' ? 2000 : 1500,
+        max_tokens: m === 'health' ? 4000 : 1500,
         system: m === 'health' ? systemHealth : systemNormal,
         messages: [{ role: 'user', content: buildPrompt(m) }]
       })
@@ -1051,7 +1092,7 @@ async function generate(m) {
     document.getElementById('out-area').innerHTML = `
       <div class="err-card">
         <h3>Something went wrong</h3>
-        <p>${err.message}</p>
+        <p>${esc(err.message)}</p>
         <p style="margin-top:.5rem">Check your Worker URL in ⚙ Settings. If the issue persists, open the Cloudflare dashboard and check your Worker logs for details.</p>
       </div>`;
   }
@@ -1062,9 +1103,10 @@ async function generate(m) {
 
 // ── Health output renderer ────────────────────────────────────────────────────
 function buildHealthOutput(text, label) {
-  // Extract health signals
-  const isRed   = /overall health[^<\n]*🔴|🔴[^<\n]*red/i.test(text);
-  const isAmber = !isRed && /overall health[^<\n]*🟡|🟡[^<\n]*amber/i.test(text);
+  // Extract health signals — check top 25 lines for both emoji and text patterns
+  const topText = text.split('\n').slice(0, 25).join('\n');
+  const isRed   = /overall health[^\n]*(🔴|\bred\b)/i.test(topText) || topText.includes('🔴');
+  const isAmber = !isRed && (/overall health[^\n]*(🟡|\bamber\b)/i.test(topText) || topText.includes('🟡'));
   const healthClass = isRed ? 'hs-red' : isAmber ? 'hs-amber' : 'hs-green';
   const healthLabel = isRed ? '🔴 Red — needs immediate attention' : isAmber ? '🟡 Amber — concerns being monitored' : '🟢 Green — on track';
 
@@ -1148,7 +1190,7 @@ function doCopy(event) {
   const el = document.getElementById('out-body');
   if (!el) return;
   navigator.clipboard.writeText(lastMarkdown || el.innerText).then(() => {
-    const btn = event.target;
+    const btn = event.currentTarget;
     const orig = btn.textContent;
     btn.textContent = '✓ Copied!';
     setTimeout(() => btn.textContent = orig, 2000);
@@ -1177,72 +1219,219 @@ async function buildWordDoc(markdown, label) {
   if (typeof docx === 'undefined') {
     throw new Error('Word library did not load. Check internet connection — your network may be blocking unpkg.com.');
   }
-  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, HeadingLevel, BorderStyle, WidthType, ShadingType, LevelFormat, AlignmentType } = docx;
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          HeadingLevel, BorderStyle, WidthType, ShadingType, LevelFormat, AlignmentType } = docx;
+
+  // ── Color palette (matches web app) ──────────────────────────────────────
+  const C = {
+    navy: '0F172A', navy2: '1E293B',
+    teal: '0EA5E9', tealDark: '0284C7', tealBg: 'E0F2FE',
+    white: 'FFFFFF', light: 'F1F5F9', mid: 'E2E8F0',
+    gray: '475569', gray2: '94A3B8',
+    red: '7F1D1D', redBg: 'FEF2F2', redBorder: 'FCA5A5',
+    amber: '78350F', amberBg: 'FFFBEB', amberBorder: 'FCD34D',
+    green: '065F46', greenBg: 'ECFDF5', greenBorder: '6EE7B7',
+  };
+
+  // ── Detect health status for scoreboard ──────────────────────────────────
+  const isHealthReport = label.toLowerCase().includes('health');
+  const topText = markdown.split('\n').slice(0, 25).join('\n');
+  const isRed   = /overall health[^\n]*(🔴|\bred\b)/i.test(topText) || topText.includes('🔴');
+  const isAmber = !isRed && (/overall health[^\n]*(🟡|\bamber\b)/i.test(topText) || topText.includes('🟡'));
+  const scoreM = markdown.match(/agile health score[:\s]*(\d+)\/100/i);
+  const confM  = markdown.match(/confidence level[:\s]*(High|Medium|Low)/i);
+  const hScore = scoreM ? scoreM[1] + '/100' : '—';
+  const hConf  = confM  ? confM[1] : '—';
+  const hColor  = isRed ? C.red   : isAmber ? C.amber   : C.green;
+  const hBg     = isRed ? C.redBg : isAmber ? C.amberBg : C.greenBg;
+  const hBorder = isRed ? C.redBorder : isAmber ? C.amberBorder : C.greenBorder;
+  const hLabel  = isRed ? 'Red — Needs Immediate Attention' : isAmber ? 'Amber — Concerns Being Monitored' : 'Green — On Track';
+  const hEmoji  = isRed ? '🔴' : isAmber ? '🟡' : '🟢';
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function clean(t) {
+    return (t || '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  }
 
   function inlineRuns(text, extra) {
     extra = extra || {};
-    const inline = marked.Lexer.lexInline(text || '');
-    return inline.map(t => {
-      const opts = { text: t.text !== undefined ? t.text : (t.raw || '') };
-      if (t.type === 'strong' || extra.bold) opts.bold = true;
-      if (t.type === 'em' || extra.italics) opts.italics = true;
-      if (t.type === 'codespan') opts.font = 'Consolas';
-      if (extra.color) opts.color = extra.color;
-      if (extra.size) opts.size = extra.size;
-      return new TextRun(opts);
-    });
+    const t = clean(text || '');
+    if (!t.trim()) return [new TextRun({ text: t, ...(extra.color?{color:extra.color}:{}), ...(extra.size?{size:extra.size}:{}) })];
+    try {
+      return marked.Lexer.lexInline(t).map(tok => {
+        const opts = { text: clean(tok.text !== undefined ? tok.text : (tok.raw || '')) };
+        if (tok.type === 'strong' || extra.bold) opts.bold = true;
+        if (tok.type === 'em'     || extra.italics) opts.italics = true;
+        if (tok.type === 'codespan') { opts.font = 'Consolas'; opts.size = 20; }
+        if (extra.color) opts.color = extra.color;
+        if (extra.size)  opts.size  = extra.size;
+        return new TextRun(opts);
+      });
+    } catch(e) {
+      return [new TextRun({ text: t, ...(extra.color?{color:extra.color}:{}), ...(extra.bold?{bold:true}:{}) })];
+    }
   }
-  function buildTable(tok) {
+
+  function noBorder() {
+    const s = { style: BorderStyle.NONE };
+    return { top:s, bottom:s, left:s, right:s, insideH:s, insideV:s };
+  }
+
+  function buildDocTable(tok) {
     const colWidth = Math.floor(9360 / tok.header.length);
-    const headerRow = new TableRow({ tableHeader: true, children: tok.header.map(h => new TableCell({ width:{size:colWidth,type:WidthType.DXA}, shading:{fill:'0F172A',type:ShadingType.CLEAR}, margins:{top:100,bottom:100,left:120,right:120}, children:[new Paragraph({children:inlineRuns(h.text,{bold:true,color:'FFFFFF'})})] })) });
-    const bodyRows = tok.rows.map((row, i) => new TableRow({ children: row.map(cell => new TableCell({ width:{size:colWidth,type:WidthType.DXA}, shading:i%2===1?{fill:'F1F5F9',type:ShadingType.CLEAR}:undefined, margins:{top:90,bottom:90,left:120,right:120}, children:[new Paragraph({children:inlineRuns(cell.text)})] })) }));
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: tok.header.map(h => new TableCell({
+        width: { size: colWidth, type: WidthType.DXA },
+        shading: { fill: C.navy, type: ShadingType.CLEAR },
+        margins: { top: 100, bottom: 100, left: 140, right: 140 },
+        children: [new Paragraph({ children: inlineRuns(h.text, { bold: true, color: C.white }) })]
+      }))
+    });
+    const bodyRows = tok.rows.map((row, i) => new TableRow({
+      children: row.map(cell => new TableCell({
+        width: { size: colWidth, type: WidthType.DXA },
+        shading: i % 2 === 1 ? { fill: C.light, type: ShadingType.CLEAR } : undefined,
+        margins: { top: 90, bottom: 90, left: 140, right: 140 },
+        children: [new Paragraph({ children: inlineRuns(cell.text) })]
+      }))
+    }));
     return new Table({ width:{size:9360,type:WidthType.DXA}, columnWidths:tok.header.map(()=>colWidth), rows:[headerRow,...bodyRows] });
   }
+
   function walk(tokens) {
     const out = [];
     tokens.forEach(tok => {
       if (tok.type === 'heading') {
-        const level = tok.depth===1?HeadingLevel.HEADING_1:tok.depth===2?HeadingLevel.HEADING_2:HeadingLevel.HEADING_3;
-        out.push(new Paragraph({heading:level,children:inlineRuns(tok.text)}));
+        if (tok.depth === 1) {
+          out.push(new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            spacing: { before: 320, after: 160 },
+            children: inlineRuns(tok.text, { color: C.navy, bold: true })
+          }));
+        } else if (tok.depth === 2) {
+          out.push(new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 320, after: 100 },
+            border: { left: { style: BorderStyle.SINGLE, size: 20, color: C.teal, space: 8 } },
+            children: inlineRuns(tok.text, { color: C.navy, bold: true })
+          }));
+        } else {
+          out.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            spacing: { before: 200, after: 80 },
+            children: inlineRuns(tok.text, { color: C.navy2, bold: true })
+          }));
+        }
       } else if (tok.type === 'paragraph') {
-        out.push(new Paragraph({spacing:{after:160},children:inlineRuns(tok.text)}));
+        out.push(new Paragraph({ spacing: { after: 160 }, children: inlineRuns(tok.text) }));
       } else if (tok.type === 'list') {
-        tok.items.forEach(item => out.push(new Paragraph({numbering:{reference:tok.ordered?'docx-numbers':'docx-bullets',level:0},spacing:{after:70},children:inlineRuns(item.text)})));
+        tok.items.forEach(item => out.push(new Paragraph({
+          numbering: { reference: tok.ordered ? 'docx-numbers' : 'docx-bullets', level: 0 },
+          spacing: { after: 80 },
+          children: inlineRuns(item.text)
+        })));
       } else if (tok.type === 'table') {
-        out.push(buildTable(tok));
-        out.push(new Paragraph({text:'',spacing:{after:160}}));
+        out.push(buildDocTable(tok));
+        out.push(new Paragraph({ text: '', spacing: { after: 160 } }));
       } else if (tok.type === 'hr') {
-        out.push(new Paragraph({spacing:{after:200},border:{bottom:{style:BorderStyle.SINGLE,size:6,color:'CBD5E1'}}}));
+        out.push(new Paragraph({ spacing: { after: 200 }, border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: C.mid } } }));
       } else if (tok.type === 'blockquote') {
-        out.push(...walk(tok.tokens));
+        if (tok.tokens) out.push(...walk(tok.tokens));
       } else if (tok.text) {
-        out.push(new Paragraph({children:inlineRuns(tok.text)}));
+        out.push(new Paragraph({ children: inlineRuns(tok.text) }));
       }
     });
     return out;
   }
 
-  const bodyChildren = walk(marked.lexer(markdown));
+  // ── Branding banner (navy header matching web topbar) ─────────────────────
+  const brandBanner = new Table({
+    width: { size: 9360, type: WidthType.DXA }, columnWidths: [9360], borders: noBorder(),
+    rows: [new TableRow({ children: [new TableCell({
+      shading: { fill: C.navy, type: ShadingType.CLEAR },
+      margins: { top: 180, bottom: 180, left: 280, right: 280 },
+      children: [
+        new Paragraph({ spacing: { after: 50 }, children: [
+          new TextRun({ text: 'SCRUM MASTER AI AGENT', bold: true, size: 19, color: '7DD3FC' }),
+          new TextRun({ text: '   ·   ', size: 19, color: '334155' }),
+          new TextRun({ text: label.toUpperCase(), bold: true, size: 19, color: C.white }),
+        ]}),
+        new Paragraph({ children: [
+          new TextRun({ text: 'Generated ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}), size: 17, color: C.gray2, italics: true })
+        ]})
+      ]
+    })]})],
+  });
+
+  // ── Health scoreboard (only for health reports) ───────────────────────────
+  const scoreboardBorderCfg = { style: BorderStyle.SINGLE, size: 8, color: hBorder };
+  const scoreboard = isHealthReport ? new Table({
+    width: { size: 9360, type: WidthType.DXA },
+    columnWidths: [4860, 2250, 2250],
+    borders: { top:scoreboardBorderCfg, bottom:scoreboardBorderCfg, left:scoreboardBorderCfg, right:scoreboardBorderCfg, insideH:{style:BorderStyle.SINGLE,size:4,color:hBorder}, insideV:{style:BorderStyle.SINGLE,size:4,color:hBorder} },
+    rows: [new TableRow({ children: [
+      new TableCell({
+        width: { size: 4860, type: WidthType.DXA },
+        shading: { fill: hBg, type: ShadingType.CLEAR },
+        margins: { top: 200, bottom: 200, left: 220, right: 220 },
+        children: [
+          new Paragraph({ spacing:{after:60}, children: [new TextRun({ text: 'OVERALL HEALTH', size: 17, color: hColor, bold: true })] }),
+          new Paragraph({ children: [
+            new TextRun({ text: hEmoji + '  ', size: 28, color: hColor }),
+            new TextRun({ text: hLabel, size: 26, color: hColor, bold: true })
+          ]})
+        ]
+      }),
+      new TableCell({
+        width: { size: 2250, type: WidthType.DXA },
+        shading: { fill: hBg, type: ShadingType.CLEAR },
+        margins: { top: 200, bottom: 200, left: 220, right: 220 },
+        children: [
+          new Paragraph({ spacing:{after:60}, children: [new TextRun({ text: 'HEALTH SCORE', size: 17, color: hColor, bold: true })] }),
+          new Paragraph({ children: [new TextRun({ text: hScore, size: 36, color: hColor, bold: true })] })
+        ]
+      }),
+      new TableCell({
+        width: { size: 2250, type: WidthType.DXA },
+        shading: { fill: hBg, type: ShadingType.CLEAR },
+        margins: { top: 200, bottom: 200, left: 220, right: 220 },
+        children: [
+          new Paragraph({ spacing:{after:60}, children: [new TextRun({ text: 'CONFIDENCE', size: 17, color: hColor, bold: true })] }),
+          new Paragraph({ children: [new TextRun({ text: hConf, size: 28, color: hColor, bold: true })] })
+        ]
+      })
+    ]})]
+  }) : null;
+
+  const spacer = () => new Paragraph({ text: '', spacing: { after: 140 } });
+
   const d = new Document({
     styles: {
-      default:{document:{run:{font:'Calibri',size:22,color:'0F172A'}}},
-      paragraphStyles:[
-        {id:'Heading1',name:'Heading 1',basedOn:'Normal',next:'Normal',quickFormat:true,run:{size:32,bold:true,font:'Calibri',color:'0F172A'},paragraph:{spacing:{before:280,after:160},outlineLevel:0}},
-        {id:'Heading2',name:'Heading 2',basedOn:'Normal',next:'Normal',quickFormat:true,run:{size:26,bold:true,font:'Calibri',color:'0F172A'},paragraph:{spacing:{before:240,after:120},outlineLevel:1,border:{bottom:{style:BorderStyle.SINGLE,size:4,color:'E2E8F0'}}}},
-        {id:'Heading3',name:'Heading 3',basedOn:'Normal',next:'Normal',quickFormat:true,run:{size:23,bold:true,font:'Calibri',color:'1E293B'},paragraph:{spacing:{before:180,after:90},outlineLevel:2}}
+      default: { document: { run: { font: 'Calibri', size: 22, color: C.navy } } },
+      paragraphStyles: [
+        { id:'Heading1', name:'Heading 1', basedOn:'Normal', next:'Normal', quickFormat:true,
+          run:{ size:32, bold:true, font:'Calibri', color:C.navy },
+          paragraph:{ spacing:{ before:320, after:160 }, outlineLevel:0 } },
+        { id:'Heading2', name:'Heading 2', basedOn:'Normal', next:'Normal', quickFormat:true,
+          run:{ size:26, bold:true, font:'Calibri', color:C.navy },
+          paragraph:{ spacing:{ before:280, after:100 }, outlineLevel:1 } },
+        { id:'Heading3', name:'Heading 3', basedOn:'Normal', next:'Normal', quickFormat:true,
+          run:{ size:23, bold:true, font:'Calibri', color:C.navy2 },
+          paragraph:{ spacing:{ before:200, after:80 }, outlineLevel:2 } },
       ]
     },
-    numbering:{config:[
-      {reference:'docx-bullets',levels:[{level:0,format:LevelFormat.BULLET,text:'•',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]},
-      {reference:'docx-numbers',levels:[{level:0,format:LevelFormat.DECIMAL,text:'%1.',alignment:AlignmentType.LEFT,style:{paragraph:{indent:{left:720,hanging:360}}}}]}
+    numbering: { config: [
+      { reference:'docx-bullets', levels:[{ level:0, format:LevelFormat.BULLET, text:'•', alignment:AlignmentType.LEFT, style:{ paragraph:{ indent:{ left:720, hanging:360 } } } }] },
+      { reference:'docx-numbers', levels:[{ level:0, format:LevelFormat.DECIMAL, text:'%1.', alignment:AlignmentType.LEFT, style:{ paragraph:{ indent:{ left:720, hanging:360 } } } }] },
     ]},
-    sections:[{
-      properties:{page:{size:{width:12240,height:15840},margin:{top:1080,right:1080,bottom:1080,left:1080}}},
-      children:[
-        new Paragraph({spacing:{after:60},children:[new TextRun({text:'SCRUM MASTER AI AGENT',bold:true,size:18,color:'0EA5E9'})]}),
-        new Paragraph({heading:HeadingLevel.HEADING_1,spacing:{after:40},children:[new TextRun({text:label})]}),
-        new Paragraph({spacing:{after:280},border:{bottom:{style:BorderStyle.SINGLE,size:8,color:'0F172A'}},children:[new TextRun({text:'Generated ' + new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}),size:18,color:'64748B',italics:true})]}),
-        ...bodyChildren
+    sections: [{
+      properties: { page: { size:{ width:12240, height:15840 }, margin:{ top:1080, right:1080, bottom:1080, left:1080 } } },
+      children: [
+        brandBanner,
+        spacer(),
+        ...(scoreboard ? [scoreboard, spacer()] : []),
+        ...walk(marked.lexer(markdown))
       ]
     }]
   });
