@@ -453,6 +453,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <script>
 // ── API Key ──
 const KEY = 'sma_key_v1';
+const WORKER_URL = 'https://scrum-proxy-agent.naresh-jaind.workers.dev';
 
 function saveKey() {
   const k = (document.getElementById('key-input').value || '').trim();
@@ -479,7 +480,9 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
 }
 
-if (localStorage.getItem(KEY)) showApp();
+// Always skip setup — Worker URL is built in
+localStorage.setItem(KEY, WORKER_URL);
+showApp();
 
 // ── Mode switching ──
 let mode = 'sprint';
