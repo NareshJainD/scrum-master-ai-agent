@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scrum Master AI Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://unpkg.com/docx@7.8.2/build/index.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F1F5F9;--surface:#fff;--navy:#0F172A;--navy2:#1E293B;
+  --teal:#0EA5E9;--teal-d:#0284C7;--teal-bg:#E0F2FE;
+  --text:#0F172A;--text2:#475569;--text3:#94A3B8;
+  --border:#E2E8F0;--border2:#CBD5E1;
+  --r:10px;--rl:14px;
+  --c1:#3B82F6;--c1b:#EFF6FF;
+  --c2:#8B5CF6;--c2b:#F5F3FF;
+  --c3:#10B981;--c3b:#ECFDF5;
+  --c4:#F59E0B;--c4b:#FFFBEB;
+  --c5:#EF4444;--c5b:#FEF2F2;
+}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6}
+
+/* ── Setup screen ── */
+.setup{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+.setup-card{background:var(--surface);border-radius:var(--rl);border:1px solid var(--border);padding:2.5rem;max-width:500px;width:100%}
+.setup-icon{width:52px;height:52px;background:var(--navy);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:1.5rem;font-size:24px}
+.setup-card h1{font-size:22px;font-weight:600;margin-bottom:.5rem}
+.setup-card>p{color:var(--text2);margin-bottom:1.5rem;line-height:1.7}
+.setup-card label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.setup-card input{width:100%;padding:11px 13px;border:1.5px solid var(--border2);border-radius:var(--r);font-size:14px;font-family:monospace;outline:none;transition:border-color .2s;color:var(--text)}
+.setup-card input:focus{border-color:var(--teal)}
+.key-hint{font-size:12px;color:var(--text3);margin-top:6px}
+.setup-btn{width:100%;margin-top:1.25rem;padding:12px;border:none;background:var(--navy);color:#fff;border-radius:var(--r);font-size:14px;font-weight:600;cursor:pointer;transition:background .2s;letter-spacing:.01em}
+.setup-btn:hover{background:var(--navy2)}
+.setup-divider{height:1px;background:var(--border);margin:1.5rem 0}
+.setup-note{font-size:12px;color:var(--text3);line-height:1.7}
+.setup-note a{color:var(--teal-d);text-decoration:none;font-weight:500}
+.setup-note a:hover{text-decoration:underline}
+.features{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:1.25rem 0}
+.feat{background:var(--bg);border-radius:var(--r);padding:10px 12px;font-size:12px;color:var(--text2);display:flex;align-items:center;gap:8px}
+.feat-icon{font-size:18px}
+
+/* ── Main App ── */
+.app{display:none}
+.topbar{background:var(--navy);color:#fff;padding:0 1.25rem;height:54px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100}
+.tb-logo{width:34px;height:34px;background:rgba(255,255,255,.1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.tb-title{font-size:15px;font-weight:600;flex:1}
+.tb-sub{font-size:11px;color:rgba(255,255,255,.45);display:none}
+.tb-badge{font-size:11px;background:rgba(14,165,233,.25);color:#7DD3FC;padding:3px 9px;border-radius:20px;font-weight:500}
+.tb-btn{padding:6px 11px;border-radius:7px;border:1px solid rgba(255,255,255,.15);background:transparent;color:rgba(255,255,255,.65);font-size:12px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;font-family:'Inter',sans-serif}
+.tb-btn:hover{background:rgba(255,255,255,.1);color:#fff}
+
+.main{display:flex;height:calc(100vh - 54px);overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{width:216px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.sb-section{padding:.75rem .75rem .25rem;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase}
+.mb{width:100%;display:flex;align-items:center;gap:9px;padding:9px .75rem;border:none;background:transparent;cursor:pointer;text-align:left;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:var(--text2);border-left:3px solid transparent;transition:all .15s}
+.mb:hover{background:var(--bg);color:var(--text)}
+.mb.on{color:var(--text);background:var(--bg);border-left-color:var(--mc,var(--teal))}
+.mb-ic{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px;transition:background .15s}
+.mb-tx{flex:1;min-width:0}
+.mb-name{font-size:13px;font-weight:500}
+.mb-hint{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-footer{margin-top:auto;padding:.75rem;border-top:1px solid var(--border)}
+.sb-footer p{font-size:11px;color:var(--text3);line-height:1.6}
+.sb-footer a{color:var(--teal-d);text-decoration:none}
+
+/* ── Content ── */
+.content{flex:1;display:grid;grid-template-columns:1fr 1fr;overflow:hidden}
+.in-panel{padding:1.25rem;overflow-y:auto;border-right:1px solid var(--border)}
+.out-panel{padding:1.25rem;overflow-y:auto;background:var(--bg)}
+
+/* Mode header */
+.mhdr{display:flex;align-items:flex-start;gap:12px;margin-bottom:1.25rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)}
+.mhdr-ic{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.mhdr h2{font-size:16px;font-weight:600;margin-bottom:2px}
+.mhdr p{font-size:12px;color:var(--text2);line-height:1.6}
+
+/* Form */
+.fg{margin-bottom:.9rem}
+.fg label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em}
+.fg input,.fg textarea,.fg select{width:100%;padding:9px 11px;border:1px solid var(--border2);border-radius:var(--r);font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--surface);outline:none;transition:border-color .2s}
+.fg input:focus,.fg textarea:focus,.fg select:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,165,233,.1)}
+.fg textarea{resize:vertical;line-height:1.6}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* Upload zone */
+.upzone{border:2px dashed var(--border2);border-radius:var(--r);padding:1.25rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);margin-bottom:.9rem;position:relative}
+.upzone:hover,.upzone.drag{border-color:var(--teal);background:var(--teal-bg)}
+.upzone input{display:none}
+.upzone .up-ico{font-size:26px;margin-bottom:.4rem}
+.upzone p{font-size:13px;color:var(--text2);font-weight:500}
+.upzone span{font-size:11px;color:var(--text3);margin-top:3px;display:block}
+.up-result{display:flex;align-items:center;gap:8px;padding:8px 11px;background:#E0F2FE;border:1px solid #BAE6FD;border-radius:var(--r);margin-bottom:.9rem;font-size:12px;color:#0369A1}
+.up-result svg{width:14px;height:14px;flex-shrink:0}
+.up-result span{flex:1}
+.up-result button{border:none;background:none;cursor:pointer;color:#0369A1;font-size:16px;line-height:1;padding:0 2px}
+.or-div{display:flex;align-items:center;gap:10px;margin:.75rem 0;color:var(--text3);font-size:12px;font-weight:500}
+.or-div::before,.or-div::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Generate button */
+.gbtn{width:100%;padding:11px;border:none;border-radius:var(--r);background:var(--navy);color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;margin-top:.25rem}
+.gbtn:hover{background:var(--navy2);transform:translateY(-1px)}
+.gbtn:active{transform:translateY(0)}
+.gbtn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+/* Output */
+.out-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;color:var(--text3);text-align:center;gap:.75rem}
+.out-empty .oe-ico{width:64px;height:64px;background:var(--surface);border:1px solid var(--border);border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px}
+.out-empty h3{font-size:14px;font-weight:500;color:var(--text2)}
+.out-empty p{font-size:13px;line-height:1.6;max-width:220px}
+.out-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:400px;gap:1rem;text-align:center}
+.spinner{width:36px;height:36px;border:2.5px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.out-loading p{font-size:13px;color:var(--text2)}
+.out-loading span{font-size:12px;color:var(--text3)}
+.out-result-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem;flex-wrap:wrap;gap:8px}
+.out-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text3);display:flex;align-items:center;gap:5px}
+.out-acts{display:flex;gap:6px}
+.oact{padding:6px 12px;border-radius:7px;border:1px solid var(--border2);background:var(--surface);color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;display:flex;align-items:center;gap:5px}
+.oact:hover{background:var(--bg);color:var(--text)}
+.out-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;font-size:13.5px;line-height:1.8;color:var(--text)}
+.out-card h1{font-size:18px;font-weight:600;margin-bottom:.75rem;color:var(--navy)}
+.out-card h2{font-size:15px;font-weight:600;margin:1.5rem 0 .5rem;color:var(--navy);padding-bottom:.4rem;border-bottom:1px solid var(--border)}
+.out-card h3{font-size:13px;font-weight:600;margin:1rem 0 .3rem;color:var(--navy2)}
+.out-card p{margin-bottom:.6rem;color:var(--text)}
+.out-card ul,.out-card ol{margin:.3rem 0 .8rem 1.2rem}
+.out-card li{margin-bottom:.3rem;color:var(--text)}
+.out-card strong{font-weight:600;color:var(--navy)}
+.out-card em{font-style:italic;color:var(--text2)}
+.out-card code{background:var(--bg);padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace;color:var(--navy2)}
+.out-card table{width:100%;border-collapse:collapse;margin:.75rem 0;font-size:13px}
+.out-card th{background:var(--bg);text-align:left;padding:8px 10px;font-weight:600;border-bottom:2px solid var(--border);font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.03em}
+.out-card td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--text)}
+.out-card tr:last-child td{border-bottom:none}
+.out-card tr:hover td{background:var(--bg)}
+.out-card blockquote{border-left:3px solid var(--teal);padding:.5rem .9rem;margin:.75rem 0;background:var(--teal-bg);border-radius:0 var(--r) var(--r) 0;color:var(--text2)}
+.out-card hr{border:none;border-top:1px solid var(--border);margin:1rem 0}
+
+/* Status badge in topbar */
+.status-dot{width:7px;height:7px;border-radius:50%;background:#22C55E;display:inline-block;margin-right:4px}
+
+/* Error card */
+.err-card{background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--rl);padding:1.25rem}
+.err-card h3{color:#DC2626;font-size:14px;font-weight:600;margin-bottom:.5rem}
+.err-card p{font-size:13px;color:#7F1D1D;line-height:1.6}
+.err-card a{color:#DC2626;font-weight:500}
+
+/* Mobile responsive */
+@media(max-width:900px){
+  .sidebar{width:180px}
+  .mb-hint{display:none}
+  .tb-sub{display:none}
+}
+@media(max-width:680px){
+  .sidebar{display:none}
+  .content{grid-template-columns:1fr}
+  .in-panel,.out-panel{overflow:visible;height:auto}
+  .main{flex-direction:column;height:auto;overflow:visible}
+  .app{height:auto}
+  .out-empty{min-height:200px}
+  .out-loading{min-height:200px}
+  .r2{grid-template-columns:1fr}
+  .features{grid-template-columns:1fr}
+}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- ═══ SETUP SCREEN ═══ -->
+<div class="setup" id="setup">
+  <div class="setup-card">
+    <div class="setup-icon">🤖</div>
+    <h1>Scrum Master AI Agent</h1>
+    <p>Five specialized AI agents for every part of Agile delivery — sprint planning, retrospectives, standups, stakeholder communication, and risk management. Plug in your data and get structured, actionable output in seconds.</p>
+
+    <div class="features">
+      <div class="feat"><span class="feat-icon">📅</span> Sprint planner</div>
+      <div class="feat"><span class="feat-icon">🔄</span> Retro facilitator</div>
+      <div class="feat"><span class="feat-icon">👥</span> Standup coach</div>
+      <div class="feat"><span class="feat-icon">📧</span> Stakeholder updates</div>
+      <div class="feat"><span class="feat-icon">⚠️</span> Risk radar (RAID)</div>
+      <div class="feat"><span class="feat-icon">📂</span> File upload support</div>
+    </div>
+
+    <div class="setup-divider"></div>
+
+    <label for="key-input">Connection URL (Worker endpoint)</label>
+    <input type="text" id="key-input" placeholder="https://your-worker-name.your-subdomain.workers.dev" autocomplete="off" onkeydown="if(event.key==='Enter')saveKey()">
+    <div class="key-hint">This is the secure proxy address — it keeps your API key hidden from anyone using this tool. See the setup guide for how to create one in 10 minutes.</div>
+    <button class="setup-btn" onclick="saveKey()">Open Scrum Master AI Agent →</button>
+
+    <div class="setup-divider"></div>
+
+    <div class="setup-note">
+      <strong>First time setting this up?</strong><br>
+      Browsers cannot call Anthropic's API directly for security reasons. You need a small free proxy (no coding required) — see the included setup guide for a 10-minute walkthrough using Cloudflare Workers.<br><br>
+      <strong>Already have your Worker URL?</strong> Paste it above. Everyone on your team can use the same URL — no individual API keys needed.
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MAIN APP ═══ -->
+<div class="app" id="app">
+  <div class="topbar">
+    <div class="tb-logo">🤖</div>
+    <div>
+      <div class="tb-title">Scrum Master AI Agent</div>
+    </div>
+    <div class="tb-badge"><span class="status-dot"></span>Claude powered</div>
+    <div style="flex:1"></div>
+    <span class="tb-sub">Built for Agile teams · No code needed</span>
+    <button class="tb-btn" onclick="changeKey()" title="Change connection URL">⚙ Settings</button>
+  </div>
+
+  <div class="main">
+    <!-- ── Sidebar ── -->
+    <div class="sidebar">
+      <div class="sb-section">Agent modes</div>
+
+      <button class="mb on" id="mb-sprint" onclick="setMode('sprint')" style="--mc:var(--c1)">
+        <div class="mb-ic" style="background:var(--c1b)">📅</div>
+        <div class="mb-tx">
+          <div class="mb-name">Sprint Planner</div>
+          <div class="mb-hint">Capacity + backlog</div>
+        </div>
+      </button>
+
+      <button class="mb" id="mb-retro" onclick="setMode('retro')" style="--mc:var(--c2)">
+        <div class="mb-ic" style="background:var(--c2b)">🔄</div>
+        <div class="mb-tx">
+          <div class="mb-name">Retro Facilitator</div>
+          <div class="mb-hint">Any retro format</div>
+        </div>
+      </button>
+
+      <button class="mb" id="mb-standup" onclick="setMode('standup')" style="--mc:var(--c3)">
+        <div class="mb-ic" style="background:var(--c3b)">👥</div>
+        <div class="mb-tx">
+          <div class="mb-name">Standup Coach</div>
+          <div class="mb-hint">Blockers + actions</div>
+        </div>
+      </button>
+
+      <button class="mb" id="mb-update" onclick="setMode('update')" style="--mc:var(--c4)">
+        <div class="mb-ic" style="background:var(--c4b)">📧</div>
+        <div class="mb-tx">
+          <div class="mb-name">Stakeholder Update</div>
+          <div class="mb-hint">Email + RAG status</div>
+        </div>
+      </button>
+
+      <button class="mb" id="mb-risk" onclick="setMode('risk')" style="--mc:var(--c5)">
+        <div class="mb-ic" style="background:var(--c5b)">⚠️</div>
+        <div class="mb-tx">
+          <div class="mb-name">Risk Radar</div>
+          <div class="mb-hint">Full RAID analysis</div>
+        </div>
+      </button>
+
+      <div class="sb-footer">
+        <p>Made for Scrum Masters &amp; Agile teams.<br>
+        Powered by <a href="https://anthropic.com" target="_blank">Claude</a> · Built by Naresh J</p>
+      </div>
+    </div>
+
+    <!-- ── Content area ── -->
+    <div class="content">
+
+      <!-- INPUT PANEL -->
+      <div class="in-panel">
+
+        <!-- SPRINT PLANNER -->
+        <div id="in-sprint" class="in-pane">
+          <div class="mhdr">
+            <div class="mhdr-ic" style="background:var(--c1b)">📅</div>
+            <div>
+              <h2>Sprint Planner</h2>
+              <p>Upload your backlog CSV (Jira/ADO export) or paste stories manually. Get capacity analysis, recommended backlog, and facilitation tips.</p>
+            </div>
+          </div>
+
+          <div class="upzone" id="dz-sprint" onclick="document.getElementById('fu-sprint').click()">
+            <input type="file" id="fu-sprint" accept=".csv,.txt,.xlsx" onchange="handleFile('sprint',this)">
+            <div class="up-ico">📂</div>
+            <p>Upload backlog file</p>
+            <span>Jira or ADO CSV export · drag &amp; drop or click to browse</span>
+          </div>
+          <div id="fi-sprint" class="hidden"></div>
+
+          <div class="or-div">or enter manually</div>
+
+          <div class="r2">
+            <div class="fg"><label>Team size</label><input type="number" id="sp-team" value="6" min="1"></div>
+            <div class="fg"><label>Sprint duration (weeks)</label><input type="number" id="sp-dur" value="2" min="1"></div>
+          </div>
+          <div class="r2">
+            <div class="fg"><label>Capacity % (after leaves &amp; ceremonies)</label><input type="number" id="sp-cap" value="80" min="1" max="100"></div>
+            <div class="fg"><label>Historical velocity (story points)</label><input type="number" id="sp-vel" value="40" min="1"></div>
+          </div>
+          <div class="fg"><label>Sprint goal</label>
+            <input type="text" id="sp-goal" placeholder="e.g. Complete user authentication and profile modules">
+          </div>
+          <div class="fg"><label>Backlog stories (one per line with estimate)</label>
+            <textarea id="sp-stories" rows="5" placeholder="User login page — 5 pts&#10;Password reset flow — 3 pts&#10;Profile settings — 8 pts&#10;API gateway integration — 13 pts&#10;Unit test coverage — 5 pts"></textarea>
+          </div>
+          <button class="gbtn" id="gbtn-sprint" onclick="generate('sprint')">✨ Generate sprint plan</button>
+        </div>
+
+        <!-- RETRO FACILITATOR -->
+        <div id="in-retro" class="in-pane hidden">
+          <div class="mhdr">
+            <div class="mhdr-ic" style="background:var(--c2b)">🔄</div>
+            <div>
+              <h2>Retro Facilitator</h2>
+              <p>Describe your sprint and pick a format. Get a full facilitation guide — icebreaker, column questions, timebox plan, and closing.</p>
+            </div>
+          </div>
+          <div class="r2">
+            <div class="fg"><label>Sprint number or name</label>
+              <input type="text" id="rt-spr" placeholder="e.g. Sprint 14">
+            </div>
+            <div class="fg"><label>Retro format</label>
+              <select id="rt-fmt">
+                <option>4Ls (Liked, Learned, Lacked, Longed for)</option>
+                <option>Start, Stop, Continue</option>
+                <option>Mad, Sad, Glad</option>
+                <option>DAKI (Drop, Add, Keep, Improve)</option>
+                <option>Rose, Bud, Thorn</option>
+                <option>Sailboat</option>
+                <option>Speed Car (Parachute, Engine, Abyss, Bridge)</option>
+              </select>
+            </div>
+          </div>
+          <div class="fg"><label>Sprint context — what happened, team dynamics, issues to address</label>
+            <textarea id="rt-ctx" rows="5" placeholder="e.g. 6-person team. Deployment issues delayed release by 2 days. 2 stories missed due to dependency on the infra team. Team morale slightly low mid-sprint but recovered by demo day. Client was happy with the overall outcomes..."></textarea>
+          </div>
+          <div class="fg"><label>Team size (optional)</label>
+            <input type="number" id="rt-size" placeholder="e.g. 6" min="1">
+          </div>
+          <button class="gbtn" id="gbtn-retro" onclick="generate('retro')">✨ Generate retro guide</button>
+        </div>
+
+        <!-- STANDUP COACH -->
+        <div id="in-standup" class="in-pane hidden">
+          <div class="mhdr">
+            <div class="mhdr-ic" style="background:var(--c3b)">👥</div>
+            <div>
+              <h2>Standup Coach</h2>
+              <p>Upload or paste your team's standup notes. Get blockers summary, action items table, at-risk stories, and what to do today.</p>
+            </div>
+          </div>
+
+          <div class="upzone" id="dz-standup" onclick="document.getElementById('fu-standup').click()">
+            <input type="file" id="fu-standup" accept=".txt,.md,.csv" onchange="handleFile('standup',this)">
+            <div class="up-ico">📋</div>
+            <p>Upload standup notes file</p>
+            <span>TXT or MD file · drag &amp; drop or click to browse</span>
+          </div>
+          <div id="fi-standup" class="hidden"></div>
+
+          <div class="or-div">or paste directly</div>
+
+          <div class="fg"><label>Team standup notes (from Slack, Teams, or meeting notes)</label>
+            <textarea id="sd-notes" rows="7" placeholder="Ravi: Finished login API, starting profile page today. No blockers.&#10;Priya: Working on payment module — blocked waiting for DevOps credentials since yesterday.&#10;Arjun: Completed testing for all sprint stories. Picking up new items today.&#10;Sneha: On leave today.&#10;Kiran: Dashboard design review still pending from design team (2 days), cannot start coding."></textarea>
+          </div>
+          <div class="fg"><label>Sprint context (optional)</label>
+            <input type="text" id="sd-ctx" placeholder="e.g. Sprint 14 · Day 6 of 10 · 3 stories in progress · demo on Friday">
+          </div>
+          <button class="gbtn" id="gbtn-standup" onclick="generate('standup')">✨ Analyze standup</button>
+        </div>
+
+        <!-- STAKEHOLDER UPDATE -->
+        <div id="in-update" class="in-pane hidden">
+          <div class="mhdr">
+            <div class="mhdr-ic" style="background:var(--c4b)">📧</div>
+            <div>
+              <h2>Stakeholder Update</h2>
+              <p>Enter your sprint outcomes. Get a professional email, executive summary, Teams/Slack short update, and an escalation note if needed.</p>
+            </div>
+          </div>
+          <div class="r2">
+            <div class="fg"><label>Project name</label>
+              <input type="text" id="sh-proj" placeholder="e.g. UBS Digital Platform">
+            </div>
+            <div class="fg"><label>Sprint / period</label>
+              <input type="text" id="sh-spr" placeholder="e.g. Sprint 14 · Q2 Week 3">
+            </div>
+          </div>
+          <div class="fg"><label>Accomplishments this sprint</label>
+            <textarea id="sh-done" rows="3" placeholder="e.g. Deployed user auth to UAT, resolved 5 critical defects, completed payment API integration, 92% of sprint goal achieved..."></textarea>
+          </div>
+          <div class="fg"><label>Upcoming work / next sprint focus</label>
+            <textarea id="sh-next" rows="2" placeholder="e.g. Performance testing, release readiness review, UAT sign-off..."></textarea>
+          </div>
+          <div class="fg"><label>Risks or blockers to flag</label>
+            <textarea id="sh-risk" rows="2" placeholder="e.g. Third-party API dependency unresolved — needs Director approval by Friday to avoid delay..."></textarea>
+          </div>
+          <div class="fg"><label>Overall RAG status</label>
+            <select id="sh-rag">
+              <option value="Green — on track">🟢 Green — on track</option>
+              <option value="Amber — concerns being monitored closely">🟡 Amber — concerns being monitored closely</option>
+              <option value="Red — needs immediate leadership attention">🔴 Red — needs immediate leadership attention</option>
+            </select>
+          </div>
+          <button class="gbtn" id="gbtn-update" onclick="generate('update')">✨ Generate stakeholder update</button>
+        </div>
+
+        <!-- RISK RADAR -->
+        <div id="in-risk" class="in-pane hidden">
+          <div class="mhdr">
+            <div class="mhdr-ic" style="background:var(--c5b)">⚠️</div>
+            <div>
+              <h2>Risk Radar</h2>
+              <p>Describe your project and current situation. Get a full RAID analysis — risk register, live issues, dependencies, and top 3 priority actions.</p>
+            </div>
+          </div>
+          <div class="fg"><label>Project context (team, tech, timeline, framework)</label>
+            <textarea id="rk-ctx" rows="3" placeholder="e.g. 8-person agile team building a React + Node.js banking platform. 6 weeks to go-live. SAFe framework. Team distributed across Chennai and London. Two junior developers joining mid-sprint..."></textarea>
+          </div>
+          <div class="fg"><label>Current delivery status</label>
+            <textarea id="rk-stat" rows="3" placeholder="e.g. Sprint 14 of 18. Velocity dropped last sprint from 42 to 28 story points. 2 critical stories still in progress. UAT starts in 10 days. 3 stories already pushed to next sprint..."></textarea>
+          </div>
+          <div class="fg"><label>Known concerns or team issues</label>
+            <textarea id="rk-iss" rows="2" placeholder="e.g. Lead developer on leave for 2 weeks from Monday. Legacy system integration proving more complex than estimated..."></textarea>
+          </div>
+          <button class="gbtn" id="gbtn-risk" onclick="generate('risk')">✨ Run risk radar</button>
+        </div>
+
+      </div><!-- end in-panel -->
+
+      <!-- OUTPUT PANEL -->
+      <div class="out-panel">
+        <div id="out-area">
+          <div class="out-empty">
+            <div class="oe-ico">💡</div>
+            <h3>Your output will appear here</h3>
+            <p>Select an agent mode, fill in your context, and click generate.</p>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end content -->
+  </div><!-- end main -->
+</div><!-- end app -->
+
+<script>
+// ── API Key ──
+const KEY = 'sma_key_v1';
+const WORKER_URL = 'https://scrum-proxy-agent.naresh-jaind.workers.dev';
+
+function saveKey() {
+  const k = (document.getElementById('key-input').value || '').trim();
+  if (!k || !k.startsWith('https://')) {
+    alert('Please enter a valid Worker URL (it starts with "https://" and ends in ".workers.dev").\n\nSee the setup guide if you have not created one yet.');
+    return;
+  }
+  localStorage.setItem(KEY, k);
+  showApp();
+}
+
+function changeKey() {
+  const k = prompt('Enter Worker URL (or cancel to keep current):');
+  if (k && k.trim().startsWith('https://')) {
+    localStorage.setItem(KEY, k.trim());
+    alert('Connection URL updated.');
+  } else if (k !== null) {
+    alert('Invalid URL. Keeping existing connection.');
+  }
+}
+
+function showApp() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+}
+
+// Always skip setup — Worker URL is built in
+localStorage.setItem(KEY, WORKER_URL);
+showApp();
+
+// ── Mode switching ──
+let mode = 'sprint';
+let lastMarkdown = '';
+function setMode(m) {
+  document.querySelectorAll('.mb').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.in-pane').forEach(p => p.classList.add('hidden'));
+  document.getElementById('mb-' + m).classList.add('on');
+  document.getElementById('in-' + m).classList.remove('hidden');
+  mode = m;
+  resetOut();
+}
+
+function resetOut() {
+  document.getElementById('out-area').innerHTML = `
+    <div class="out-empty">
+      <div class="oe-ico">💡</div>
+      <h3>Your output will appear here</h3>
+      <p>Fill in the form and click generate.</p>
+    </div>`;
+}
+
+// ── File upload ──
+function handleFile(m, inp) {
+  const file = inp.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const txt = e.target.result;
+    const infoEl = document.getElementById('fi-' + m);
+    infoEl.className = 'up-result';
+    infoEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${file.name} ready</span><button onclick="clearFile('${m}')">✕</button>`;
+
+    if (m === 'sprint') {
+      const lines = txt.split('\n').filter(l => l.trim());
+      let parsed = '';
+      const header = lines[0].toLowerCase();
+      const cols = header.split(',');
+      const nameIdx = cols.findIndex(c => c.includes('summar') || c.includes('title') || c.includes('name') || c.includes('story'));
+      const ptsIdx = cols.findIndex(c => c.includes('point') || c.includes('estimate') || c.includes('sp') || c.includes('size'));
+      if (nameIdx >= 0) {
+        lines.slice(1).forEach(line => {
+          const cs = line.split(',').map(c => c.replace(/"/g,'').trim());
+          if (cs[nameIdx]) {
+            parsed += cs[nameIdx] + (ptsIdx >= 0 && cs[ptsIdx] ? ' — ' + cs[ptsIdx] + ' pts' : '') + '\n';
+          }
+        });
+        if (parsed) document.getElementById('sp-stories').value = parsed.trim();
+      } else {
+        // Plain text file — use as-is
+        document.getElementById('sp-stories').value = txt.slice(0, 2000);
+      }
+    }
+    if (m === 'standup') {
+      document.getElementById('sd-notes').value = txt.slice(0, 3000);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function clearFile(m) {
+  document.getElementById('fi-' + m).className = 'hidden';
+  document.getElementById('fi-' + m).innerHTML = '';
+  document.getElementById('fu-' + m).value = '';
+}
+
+// Drag & drop
+['sprint','standup'].forEach(m => {
+  const dz = document.getElementById('dz-' + m);
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f) {
+      const dt = new DataTransfer();
+      dt.items.add(f);
+      const inp = document.getElementById('fu-' + m);
+      inp.files = dt.files;
+      handleFile(m, inp);
+    }
+  });
+});
+
+// ── Prompt builder ──
+function v(id) { const el = document.getElementById(id); return el ? el.value : ''; }
+
+function prompt(m) {
+  if (m === 'sprint') return `You are a senior Scrum Master AI with 15+ years of enterprise Agile delivery experience.
+
+SPRINT PLANNING REQUEST
+Team: ${v('sp-team')} people | Duration: ${v('sp-dur')} weeks | Capacity: ${v('sp-cap')}% | Historical velocity: ${v('sp-vel')} story points
+Sprint goal: ${v('sp-goal')}
+
+Backlog stories:
+${v('sp-stories')}
+
+Provide a structured, actionable sprint plan using these sections. Keep every section tight — bullets, not paragraphs.
+
+## 1. Capacity Calculation
+One line showing the math. One line stating the adjusted story point budget.
+
+## 2. Recommended Sprint Backlog
+Bullet list of stories to include, max 6 words of rationale each. End with one line: total points vs budget.
+
+## 3. Stories to Defer
+Bullet list, max one short line per story.
+
+## 4. Refined Sprint Goal
+One sentence. Outcome-focused.
+
+## 5. Sprint Risk Level
+**🟢 Green / 🟡 Amber / 🔴 Red** — one sentence reason, no more.
+
+## 6. Scrum Master Tips for This Sprint
+3 bullets, max 12 words each. No elaboration.`;
+
+  if (m === 'retro') return `You are a senior Scrum Master AI specializing in retrospective facilitation.
+
+RETROSPECTIVE REQUEST
+Sprint: ${v('rt-spr')} | Format: ${v('rt-fmt')} | Team size: ${v('rt-size') || 'not specified'}
+Context: ${v('rt-ctx')}
+
+Create a complete, ready-to-use facilitation guide. Bullets only, no paragraphs.
+
+## 1. Opening Icebreaker
+One question, max 2 sentences, tailored to this sprint's context.
+
+## 2. Format Guide — ${v('rt-fmt')}
+For each column:
+- **Column name** (max 6-word definition)
+- 3 prompt questions, one line each, no elaboration
+
+## 3. Timebox Plan
+Bullet list, one line per stage with minutes allocated. Total 60 minutes.
+
+## 4. Facilitation Tips
+3 bullets, max 12 words each, addressing the specific issues in the context.
+
+## 5. Action Item Template
+| Action | Owner | Due date | Done when… |
+
+## 6. Closing Question
+One sentence.`;
+
+  if (m === 'standup') return `You are a senior Scrum Master AI analyzing daily standup notes.
+
+STANDUP ANALYSIS REQUEST
+Sprint context: ${v('sd-ctx')}
+
+Standup notes:
+${v('sd-notes')}
+
+Analyze and provide a structured daily standup summary. Bullets and tables only, no paragraphs.
+
+## 1. Blockers Identified
+| Owner | Blocker | Pending since | Urgency |
+|-------|---------|---------------|---------|
+
+## 2. Action Items for Scrum Master
+| Action | Owner | Due | Priority |
+|--------|-------|-----|----------|
+
+## 3. At-Risk Stories
+Bullet list, max one line per story — name it and the delay signal.
+
+## 4. Team Availability
+Bullet list, one line per person who is out or partial, with impact.
+
+## 5. Scrum Master Actions Today
+3 bullets, max 12 words each. Name people. Be concrete.
+
+## 6. Sprint Health Signal
+One sentence.`;
+
+  if (m === 'update') return `You are a senior Scrum Master AI creating professional stakeholder communications.
+
+STAKEHOLDER UPDATE REQUEST
+Project: ${v('sh-proj')} | Period: ${v('sh-spr')} | RAG Status: ${v('sh-rag')}
+Accomplishments: ${v('sh-done')}
+Upcoming: ${v('sh-next')}
+Risks/blockers: ${v('sh-risk')}
+
+Generate all of the following. Every section must be skimmable in under 20 seconds.
+
+## 1. Email Subject Line
+One line. Professional, specific, includes project name and period.
+
+## 2. Executive Summary (exactly 3 bullets, max 12 words each)
+- 🏆 Key win
+- 🎯 Next critical focus
+- ⚡ Watch-out item
+
+## 3. Status Email Body
+Maximum 100 words total. Structure as exactly 4 short bullet-style lines, each its own paragraph of 1 sentence:
+- Opening line stating RAG status and the one-sentence headline
+- One line: what got delivered
+- One line: what's at risk and the action being taken
+- One line: what's next
+Use a brief greeting and signoff but keep the body itself to those 4 lines. No paragraphs longer than one sentence. Do not summarize back the full context — pick only the most decision-relevant facts.
+
+## 4. Teams / Slack Short Update
+Exactly 4 lines. Each line is a separate bullet starting with an emoji. Put a blank line between each bullet. Do not run them together. Format like this:
+
+✅ [line 1]
+
+⚠️ [line 2]
+
+🎯 [line 3]
+
+👀 [line 4]
+
+## 5. Escalation Note
+Maximum 2 sentences. If not critical, write only: *No escalation required at this time.*`;
+
+  if (m === 'risk') return `You are a senior Scrum Master and risk analyst. Perform a complete RAID analysis.
+
+RISK RADAR REQUEST
+Project context: ${v('rk-ctx')}
+Delivery status: ${v('rk-stat')}
+Known concerns: ${v('rk-iss')}
+
+Provide. Bullets and tables only, no paragraphs.
+
+## 1. Risk Register
+| Risk | Category | Likelihood | Impact | Mitigation action |
+|------|----------|------------|--------|-------------------|
+(5-6 risks. Categories: Schedule / Resource / Technical / Dependency / Quality. L/M/H for likelihood and impact. Mitigation column max 10 words.)
+
+## 2. Assumptions to Validate
+3 bullets, max one line each — assumption and who confirms it.
+
+## 3. Live Issues (happening now)
+Bullet list, max one line per issue.
+
+## 4. Dependencies at Risk
+Bullet list, max one line per dependency — name it and the consequence.
+
+## 5. Top 3 Priority Actions This Week
+3 bullets, max 12 words each. Name people.
+
+## 6. Escalation Radar
+2 sentences max. If nothing needs escalation, say so in one line.`;
+
+  return '';
+}
+
+// ── Loading messages per mode ──
+const loadingMsg = {
+  sprint: ['Calculating sprint capacity...', 'Reviewing backlog stories...', 'Building your sprint plan...'],
+  retro: ['Reading sprint context...', 'Designing retro guide...', 'Crafting facilitation questions...'],
+  standup: ['Parsing standup notes...', 'Identifying blockers...', 'Building action items...'],
+  update: ['Drafting your email...', 'Writing executive summary...', 'Generating Slack update...'],
+  risk: ['Running RAID analysis...', 'Building risk register...', 'Identifying top actions...']
+};
+
+// ── Generate ──
+async function generate(m) {
+  const workerUrl = localStorage.getItem(KEY);
+  if (!workerUrl) { alert('Connection URL missing. Click ⚙ Settings to update it.'); return; }
+
+  const btn = document.getElementById('gbtn-' + m);
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generating...';
+
+  const msgs = loadingMsg[m] || ['Analyzing...'];
+  let msgIdx = 0;
+  document.getElementById('out-area').innerHTML = `
+    <div class="out-loading">
+      <div class="spinner"></div>
+      <p id="load-msg">${msgs[0]}</p>
+      <span>Usually takes 8–15 seconds</span>
+    </div>`;
+  const msgTimer = setInterval(() => {
+    msgIdx = (msgIdx + 1) % msgs.length;
+    const el = document.getElementById('load-msg');
+    if (el) el.textContent = msgs[msgIdx];
+  }, 2500);
+
+  try {
+    const res = await fetch(workerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1500,
+        system: 'You are a highly experienced Agile Coach and Scrum Master with 15+ years across banking, telecom, and technology enterprises. Provide practical, structured, immediately actionable outputs formatted in Markdown. Use clear ## section headers. Be specific to the context given — never write generic advice. Every output should be something the Scrum Master can copy, share, or use within the hour.\n\nBREVITY IS CRITICAL. Busy people will skim this, not read it. Default to bullet points over paragraphs everywhere they fit. Never write more than 2 sentences in a row without a line break or bullet. Cut every word that does not change the meaning — no scene-setting, no throat-clearing, no "it is important to note", no restating the question back. Respect every word limit and bullet count given in the instructions exactly — going over is a failure, not thoroughness.',
+        messages: [{ role: 'user', content: prompt(m) }]
+      })
+    });
+
+    clearInterval(msgTimer);
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const text = (data.content || []).map(b => b.text || '').join('');
+    lastMarkdown = text;
+
+    const labels = { sprint:'Sprint Plan', retro:'Retro Guide', standup:'Standup Analysis', update:'Stakeholder Update', risk:'Risk Radar' };
+    const label = labels[m];
+
+    // Use marked if available, else plain pre
+    let html;
+    if (typeof marked !== 'undefined') {
+      html = marked.parse(text);
+    } else {
+      html = '<pre style="white-space:pre-wrap;font-size:13px;line-height:1.8">' + text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>';
+    }
+
+    document.getElementById('out-area').innerHTML = `
+      <div class="out-result">
+        <div class="out-result-hdr">
+          <div class="out-label">✨ ${label}</div>
+          <div class="out-acts">
+            <button class="oact" onclick="doCopy()">📋 Copy text</button>
+            <button class="oact" id="dlbtn" onclick="doDownload(this,'${label}')">⬇ Download as Word</button>
+          </div>
+        </div>
+        <div class="out-card" id="out-body">${html}</div>
+      </div>`;
+
+  } catch (err) {
+    clearInterval(msgTimer);
+    document.getElementById('out-area').innerHTML = `
+      <div class="err-card">
+        <h3>Something went wrong</h3>
+        <p>${err.message}</p>
+        <p style="margin-top:.5rem">Check your connection URL in ⚙ Settings — make sure it matches your Worker URL exactly, with no trailing slash. If the issue persists, check the Worker logs in your Cloudflare dashboard.</p>
+      </div>`;
+  }
+
+  btn.disabled = false;
+  btn.textContent = orig;
+}
+
+function doCopy() {
+  const el = document.getElementById('out-body');
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = event.target;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy text', 2000);
+  }).catch(() => alert('Copy failed — please select and copy manually.'));
+}
+
+function doDownload(btn, label) {
+  if (!lastMarkdown) return;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Preparing document...';
+  buildWordDoc(lastMarkdown, label)
+    .then(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = label.replace(/ /g, '_') + '_' + new Date().toISOString().slice(0, 10) + '.docx';
+      a.click();
+      URL.revokeObjectURL(url);
+    })
+    .catch(err => alert('Could not generate the Word document: ' + err.message))
+    .finally(() => {
+      btn.disabled = false;
+      btn.textContent = orig;
+    });
+}
+
+async function buildWordDoc(markdown, label) {
+  if (typeof docx === 'undefined') {
+    throw new Error('The Word document library did not load. Check your internet connection, or your network may be blocking unpkg.com — try a different network and reload the page.');
+  }
+  const {
+    Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+    HeadingLevel, BorderStyle, WidthType, ShadingType, LevelFormat, AlignmentType
+  } = docx;
+
+  function inlineRuns(text, extra) {
+    extra = extra || {};
+    const inline = marked.Lexer.lexInline(text || '');
+    return inline.map(t => {
+      const opts = { text: t.text !== undefined ? t.text : (t.raw || '') };
+      if (t.type === 'strong' || extra.bold) opts.bold = true;
+      if (t.type === 'em' || extra.italics) opts.italics = true;
+      if (t.type === 'codespan') opts.font = 'Consolas';
+      if (t.type === 'del') opts.strike = true;
+      if (extra.color) opts.color = extra.color;
+      if (extra.size) opts.size = extra.size;
+      return new TextRun(opts);
+    });
+  }
+
+  function buildTable(tok) {
+    const colCount = tok.header.length;
+    const colWidth = Math.floor(9360 / colCount);
+    const headerRow = new TableRow({
+      tableHeader: true,
+      children: tok.header.map(h => new TableCell({
+        width: { size: colWidth, type: WidthType.DXA },
+        shading: { fill: '0F172A', type: ShadingType.CLEAR },
+        margins: { top: 100, bottom: 100, left: 120, right: 120 },
+        children: [new Paragraph({ children: inlineRuns(h.text, { bold: true, color: 'FFFFFF' }) })]
+      }))
+    });
+    const bodyRows = tok.rows.map((row, i) => new TableRow({
+      children: row.map(cell => new TableCell({
+        width: { size: colWidth, type: WidthType.DXA },
+        shading: i % 2 === 1 ? { fill: 'F1F5F9', type: ShadingType.CLEAR } : undefined,
+        margins: { top: 90, bottom: 90, left: 120, right: 120 },
+        children: [new Paragraph({ children: inlineRuns(cell.text) })]
+      }))
+    }));
+    return new Table({
+      width: { size: 9360, type: WidthType.DXA },
+      columnWidths: tok.header.map(() => colWidth),
+      rows: [headerRow, ...bodyRows]
+    });
+  }
+
+  function walk(tokens) {
+    const out = [];
+    tokens.forEach(tok => {
+      if (tok.type === 'heading') {
+        const level = tok.depth === 1 ? HeadingLevel.HEADING_1 : tok.depth === 2 ? HeadingLevel.HEADING_2 : HeadingLevel.HEADING_3;
+        out.push(new Paragraph({ heading: level, children: inlineRuns(tok.text) }));
+      } else if (tok.type === 'paragraph') {
+        out.push(new Paragraph({ spacing: { after: 160 }, children: inlineRuns(tok.text) }));
+      } else if (tok.type === 'list') {
+        tok.items.forEach(item => {
+          out.push(new Paragraph({
+            numbering: { reference: tok.ordered ? 'docx-numbers' : 'docx-bullets', level: 0 },
+            spacing: { after: 70 },
+            children: inlineRuns(item.text)
+          }));
+        });
+      } else if (tok.type === 'table') {
+        out.push(buildTable(tok));
+        out.push(new Paragraph({ text: '', spacing: { after: 160 } }));
+      } else if (tok.type === 'hr') {
+        out.push(new Paragraph({
+          spacing: { after: 200 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CBD5E1' } }
+        }));
+      } else if (tok.type === 'blockquote') {
+        out.push(...walk(tok.tokens));
+      } else if (tok.text) {
+        out.push(new Paragraph({ children: inlineRuns(tok.text) }));
+      }
+    });
+    return out;
+  }
+
+  const bodyChildren = walk(marked.lexer(markdown));
+
+  const doc = new Document({
+    styles: {
+      default: { document: { run: { font: 'Calibri', size: 22, color: '0F172A' } } },
+      paragraphStyles: [
+        { id: 'Heading1', name: 'Heading 1', basedOn: 'Normal', next: 'Normal', quickFormat: true,
+          run: { size: 32, bold: true, font: 'Calibri', color: '0F172A' },
+          paragraph: { spacing: { before: 280, after: 160 }, outlineLevel: 0 } },
+        { id: 'Heading2', name: 'Heading 2', basedOn: 'Normal', next: 'Normal', quickFormat: true,
+          run: { size: 26, bold: true, font: 'Calibri', color: '0F172A' },
+          paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 1,
+            border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: 'E2E8F0' } } } },
+        { id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true,
+          run: { size: 23, bold: true, font: 'Calibri', color: '1E293B' },
+          paragraph: { spacing: { before: 180, after: 90 }, outlineLevel: 2 } }
+      ]
+    },
+    numbering: {
+      config: [
+        { reference: 'docx-bullets', levels: [{ level: 0, format: LevelFormat.BULLET, text: '•', alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] },
+        { reference: 'docx-numbers', levels: [{ level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 720, hanging: 360 } } } }] }
+      ]
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840 },
+          margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+        }
+      },
+      children: [
+        new Paragraph({
+          spacing: { after: 60 },
+          children: [new TextRun({ text: 'SCRUM MASTER AI AGENT', bold: true, size: 18, color: '0EA5E9' })]
+        }),
+        new Paragraph({
+          heading: HeadingLevel.HEADING_1,
+          spacing: { after: 40 },
+          children: [new TextRun({ text: label })]
+        }),
+        new Paragraph({
+          spacing: { after: 280 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: '0F172A' } },
+          children: [new TextRun({
+            text: 'Generated ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
+            size: 18, color: '64748B', italics: true
+          })]
+        }),
+        ...bodyChildren
+      ]
+    }]
+  });
+
+  return Packer.toBlob(doc);
+}
+</script>
+</body>
+</html>
