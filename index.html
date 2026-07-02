@@ -173,10 +173,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .err-card{background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--rl);padding:1.25rem}
 .err-card h3{color:#DC2626;font-size:14px;font-weight:600;margin-bottom:.5rem}
 .err-card p{font-size:13px;color:#7F1D1D;line-height:1.6}
-@media(max-width:900px){.sidebar{width:180px}.mb-hint{display:none}}
-@media(max-width:680px){.sidebar{display:none}.content{grid-template-columns:1fr}.in-panel,.out-panel{overflow:visible;height:auto}.main{flex-direction:column;height:auto;overflow:visible}.app{height:auto}.out-empty,.out-loading{min-height:200px}.r2{grid-template-columns:1fr}.sample-row{grid-template-columns:1fr 1fr}.features{grid-template-columns:1fr}.mobile-nav{display:flex}}
-.hidden{display:none!important}
-/* Mobile nav */
+/* Mobile nav — base style MUST be before media queries */
 .mobile-nav{display:none;overflow-x:auto;background:var(--surface);border-bottom:1px solid var(--border);padding:.5rem .75rem;gap:6px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .mobile-nav::-webkit-scrollbar{display:none}
 .mnav{padding:6px 14px;border:1px solid var(--border2);border-radius:20px;background:transparent;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;transition:all .15s;flex-shrink:0}
@@ -185,6 +182,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 /* Privacy note */
 .privacy-note{font-size:11px;color:var(--text3);background:var(--bg);border:0.5px solid var(--border);border-radius:var(--r);padding:7px 11px;margin-top:.6rem;line-height:1.6;display:flex;gap:6px;align-items:flex-start}
 .privacy-note span{flex-shrink:0}
+@media(max-width:900px){.sidebar{width:180px}.mb-hint{display:none}}
+@media(max-width:680px){.sidebar{display:none}.content{grid-template-columns:1fr}.in-panel,.out-panel{overflow:visible;height:auto}.main{flex-direction:column;height:auto;overflow:visible}.app{height:auto}.out-empty,.out-loading{min-height:200px}.r2{grid-template-columns:1fr}.sample-row{grid-template-columns:1fr 1fr}.features{grid-template-columns:1fr}.mobile-nav{display:flex}}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -294,7 +294,7 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
             <textarea id="hl-data" rows="10" placeholder="Paste any combination of delivery data here — sprint progress, story statuses, blockers, team availability, defect counts, test results, DevOps pipeline status, capacity data, risks, PI planning notes, release readiness, standup notes, and anything else relevant to your current sprint or program.&#10;&#10;The more context you provide, the more specific and actionable the analysis will be.&#10;&#10;Alternatively, click one of the sample buttons above to load a ready-made dataset and see the agents in action."></textarea>
           </div>
           <button class="gbtn" id="gbtn-health" onclick="generate('health')">📊 Run Multi-Agent Analysis</button>
-          <div class="privacy-note"><span>⚠️</span> Do not upload confidential, client-sensitive, personal, or production data unless approved by your organisation's data security policy. All data is sent to Claude via your own Cloudflare Worker and is not stored.</div>
+          <div class="privacy-note"><span>⚠️</span> Do not upload confidential, client-sensitive, personal, or production data unless approved by your organisation's data security policy. This app does not intentionally store uploaded content, but data is sent to Claude through the configured Cloudflare Worker for processing. Confirm your organisation's AI, API, and logging policies before using real project data.</div>
         </div>
 
         <!-- SPRINT PLANNER -->
@@ -614,7 +614,7 @@ Regression: In Progress | Automation: 38% (target 60%)
 UAT: At Risk — Squad 1 UAT not started, Squad 2 on track
 
 PEOPLE AND CAPACITY
-Ravi (ML) — SPOF risk, informally mentioned considering other opportunities
+ML Engineer — SPOF risk, possible attrition concern (informally flagged)
 2 developers on leave next sprint
 Team has not had a day off in 6 weeks — burnout signals observed
 Backend developers Developer A and B consistently overloaded
@@ -631,7 +631,12 @@ KNOWN RISKS
   const data = samples[type];
   if (data) {
     document.getElementById('hl-data').value = data;
-    document.getElementById('hl-data').focus();
+    document.getElementById('out-area').innerHTML = `
+      <div class="out-empty">
+        <div class="oe-ico">✅</div>
+        <h3>Sample data loaded</h3>
+        <p>Review or edit the data above, then click Run Multi-Agent Analysis.</p>
+      </div>`;
   }
 }
 
@@ -643,6 +648,11 @@ function esc(str) {
 function handleFile(m, inp) {
   const file = inp.files[0];
   if (!file) return;
+  if (file.size > 300000) {
+    alert('This file is too large (' + Math.round(file.size/1024) + ' KB). Please upload a file under 300 KB, or paste a smaller extract of your data directly into the text area.');
+    inp.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = e => {
     const txt = e.target.result;
@@ -1110,9 +1120,9 @@ function buildHealthOutput(text, label) {
   const healthClass = isRed ? 'hs-red' : isAmber ? 'hs-amber' : 'hs-green';
   const healthLabel = isRed ? '🔴 Red — needs immediate attention' : isAmber ? '🟡 Amber — concerns being monitored' : '🟢 Green — on track';
 
-  const scoreM = text.match(/agile health score[:\s]*(\d+)\/100/i);
+  const scoreM = text.match(/agile health score\W*(\d{1,3})\s*\/\s*100/i);
   const score  = scoreM ? scoreM[1] + '/100' : null;
-  const confM  = text.match(/confidence level[:\s]*(High|Medium|Low)/i);
+  const confM  = text.match(/confidence level\W*(High|Medium|Low)/i);
   const conf   = confM ? confM[1] : null;
 
   const scoreboard = `
@@ -1238,8 +1248,8 @@ async function buildWordDoc(markdown, label) {
   const topText = markdown.split('\n').slice(0, 25).join('\n');
   const isRed   = /overall health[^\n]*(🔴|\bred\b)/i.test(topText) || topText.includes('🔴');
   const isAmber = !isRed && (/overall health[^\n]*(🟡|\bamber\b)/i.test(topText) || topText.includes('🟡'));
-  const scoreM = markdown.match(/agile health score[:\s]*(\d+)\/100/i);
-  const confM  = markdown.match(/confidence level[:\s]*(High|Medium|Low)/i);
+  const scoreM = markdown.match(/agile health score\W*(\d{1,3})\s*\/\s*100/i);
+  const confM  = markdown.match(/confidence level\W*(High|Medium|Low)/i);
   const hScore = scoreM ? scoreM[1] + '/100' : '—';
   const hConf  = confM  ? confM[1] : '—';
   const hColor  = isRed ? C.red   : isAmber ? C.amber   : C.green;
