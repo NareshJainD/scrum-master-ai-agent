@@ -438,7 +438,11 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 <script>
 // ── API / Worker ──────────────────────────────────────────────────────────────
 const KEY = 'sma_key_v1';
+const TOKEN_KEY = 'sma_token_v1';
 const WORKER_URL = 'https://scrum-proxy-agent.naresh-jaind.workers.dev';
+// APP_TOKEN must match the ACCESS_TOKEN secret set in your Cloudflare Worker.
+// To rotate: change the value below AND update ACCESS_TOKEN in Cloudflare Worker secrets, then redeploy both.
+const APP_TOKEN = 'naresh-scrum-master-agent-2026-secure';
 
 function saveKey() {
   const k = (document.getElementById('key-input').value || '').trim();
@@ -450,12 +454,23 @@ function saveKey() {
   showApp();
 }
 function changeKey() {
-  const k = window.prompt('Enter Worker URL (or cancel to keep current):');
-  if (k && k.trim().startsWith('https://')) {
-    localStorage.setItem(KEY, k.trim());
-    alert('Connection URL updated.');
-  } else if (k !== null) {
-    alert('Invalid URL. Keeping existing connection.');
+  const choice = window.confirm('What would you like to update?\n\nOK = Worker URL\nCancel = Access token');
+  if (choice) {
+    const k = window.prompt('Enter new Worker URL:');
+    if (k && k.trim().startsWith('https://')) {
+      localStorage.setItem(KEY, k.trim());
+      alert('Worker URL updated.');
+    } else if (k !== null) {
+      alert('Invalid URL — must start with https://');
+    }
+  } else {
+    const t = window.prompt('Enter new access token (must match your Cloudflare Worker ACCESS_TOKEN secret):');
+    if (t && t.trim().length > 0) {
+      localStorage.setItem(TOKEN_KEY, t.trim());
+      alert('Access token updated.');
+    } else if (t !== null) {
+      alert('Token cannot be empty.');
+    }
   }
 }
 function showApp() {
@@ -463,6 +478,7 @@ function showApp() {
   document.getElementById('app').style.display = 'block';
 }
 localStorage.setItem(KEY, WORKER_URL);
+localStorage.setItem(TOKEN_KEY, APP_TOKEN);
 showApp();
 
 // ── Mode switching ────────────────────────────────────────────────────────────
@@ -1020,6 +1036,7 @@ function validate(m) {
 async function generate(m) {
   if (!validate(m)) return;
   const workerUrl = localStorage.getItem(KEY);
+  const agentToken = localStorage.getItem(TOKEN_KEY) || '';
   if (!workerUrl) { alert('Connection URL missing. Click ⚙ Settings to update it.'); return; }
 
   const btn = document.getElementById('gbtn-' + m);
@@ -1047,7 +1064,10 @@ async function generate(m) {
   try {
     const res = await fetch(workerUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Agent-Token': agentToken,
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: m === 'health' ? 4000 : 1500,
