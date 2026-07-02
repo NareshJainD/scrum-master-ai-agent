@@ -583,11 +583,11 @@ Sprint Points: 44 committed | 28 completed | 16 remaining (Day 7 of 10)
 Velocity: 42 → 38 → 28 (declining trend, third sprint in a row)
 Current WIP: 9 (limit: 6)
 Blockers:
-  - US-1002: Pinecone vector integration | Blocked: OpenAI API key not provisioned (3 days) | Points: 13 | Owner: ML Engineer (Ravi)
+  - US-1002: Pinecone vector integration | Blocked: OpenAI API key not provisioned (3 days) | Points: 13 | Owner: ML Engineer
   - US-1007: Relevance feedback loop | Blocked on US-1002 | Points: 8
   - BUG-2001: Search timeout P1 | Critical | Open — no fix ETA
   - PR pending review for synonym expansion (since Day 5)
-ML Engineer (Ravi) = single point of failure for all AI/ML work. No backup.
+ML Engineer (sole ML resource) = single point of failure for all AI/ML work. No backup.
 OpenAI API cost in staging: 40% over budget estimate.
 Zero-result rate: 11% (target: under 5% by go-live, 6 sprints left)
 P99 search latency: 680ms (target: 400ms, not started optimising)
@@ -620,7 +620,7 @@ Team has not had a day off in 6 weeks — burnout signals observed
 Backend developers Developer A and B consistently overloaded
 
 KNOWN RISKS
-1. ML SPOF: Ravi is sole person with Pinecone/OpenAI expertise
+1. ML SPOF: one ML engineer is the sole person with Pinecone/OpenAI expertise
 2. Latency SLA: 680ms vs 400ms target — performance testing not started
 3. Scope creep: Voice search requested, not in SOW
 4. API cost: 40% over budget in staging, production unknown
